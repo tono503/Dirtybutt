@@ -4,11 +4,10 @@
   <meta charset="utf-8">
   <title>Baby Care Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#7fb2ff">
+  <meta name="theme-color" content="#0a84ff">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icon-192.png">
   <link rel="stylesheet" href="styles.css">
-  <!-- Optional Firebase (only if you want sync). Fill FIREBASE_CONFIG in settings. -->
   <script type="importmap">
     {
       "imports": {
@@ -19,176 +18,231 @@
   </script>
 </head>
 <body>
-  <header class="site-header">
-    <h1>👶 Baby Care Tracker</h1>
-    <nav class="tabs" role="tablist" aria-label="Sections">
-      <button role="tab" aria-selected="true" aria-controls="tab-log" id="btn-log">Log</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-history" id="btn-history">History</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-stats" id="btn-stats">Stats</button>
-      <button role="tab" aria-selected="false" aria-controls="tab-settings" id="btn-settings">Settings</button>
-    </nav>
-  </header>
+  <div class="desktop">
+    <header class="titlebar" role="banner" aria-label="App title bar">
+      <div class="traffic-lights" aria-hidden="true">
+        <span class="red"></span><span class="yellow"></span><span class="green"></span>
+      </div>
+      <div class="title">👶 Baby Care Tracker</div>
+      <div class="toolbar">
+        <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme" title="Toggle theme">🌓</button>
+        <button class="icon-btn" id="install-btn" aria-label="Install">⬇️</button>
+      </div>
+    </header>
 
-  <main>
-    <section id="tab-log" role="tabpanel" aria-labelledby="btn-log" class="panel show">
-      <form id="entry-form" class="card" autocomplete="off">
-        <div class="row">
-          <label>Type
-            <select name="type" id="type" required>
-              <option value="feeding">Feeding</option>
-              <option value="diaper">Diaper</option>
-              <option value="bath">Bath/Shower</option>
-              <option value="sleep">Sleep</option>
-              <option value="pump">Pumping</option>
-              <option value="med">Medicine</option>
-            </select>
-          </label>
-          <label>Who
-            <select name="who" id="who" required>
-              <option value="mom">Mom</option>
-              <option value="dad">Dad</option>
-              <option value="both">Both</option>
-              <option value="caregiver">Caregiver</option>
-            </select>
-          </label>
-        </div>
-        <div class="row">
-          <label>Date & Time
-            <input type="datetime-local" id="datetime" name="datetime" required>
-          </label>
-          <label>Amount / Details
-            <input type="text" id="amount" name="amount" placeholder="e.g., 4 oz, 15 min, wet/dirty">
-          </label>
-        </div>
-        <label>Notes
-          <textarea id="notes" name="notes" rows="3" placeholder="Anything notable…"></textarea>
-        </label>
-        <div class="actions">
-          <button type="submit" class="btn primary">Save entry</button>
-          <button type="button" class="btn" id="quick-now">Now</button>
-        </div>
-      </form>
+    <main class="layout">
+      <aside class="sidebar" aria-label="Navigation">
+        <nav class="sidebar-nav">
+          <button class="nav-btn active" data-tab="log">Log</button>
+          <button class="nav-btn" data-tab="history">History</button>
+          <button class="nav-btn" data-tab="stats">Stats</button>
+          <button class="nav-btn" data-tab="settings">Settings</button>
+        </nav>
 
-      <section class="summary grid">
-        <div class="tile">
-          <h3>Last feeding</h3>
-          <p id="last-feeding">—</p>
-        </div>
-        <div class="tile">
-          <h3>Diapers today</h3>
-          <p id="diapers-today">0</p>
-        </div>
-        <div class="tile">
-          <h3>Bath last</h3>
-          <p id="last-bath">—</p>
-        </div>
-        <div class="tile">
-          <h3>Sleep last</h3>
-          <p id="last-sleep">—</p>
-        </div>
-      </section>
+        <section class="status card glass small">
+          <h3>Today</h3>
+          <ul class="today">
+            <li><span>Last feeding</span><strong id="last-feeding">—</strong></li>
+            <li><span>Diapers</span><strong id="diapers-today">0</strong></li>
+            <li><span>Last bath</span><strong id="last-bath">—</strong></li>
+            <li><span>Last sleep</span><strong id="last-sleep">—</strong></li>
+          </ul>
+        </section>
+      </aside>
 
-      <section class="reminders card">
-        <h3>Reminders</h3>
-        <div class="row">
-          <label>Feeding interval (hours)
-            <input type="number" id="feed-interval" min="1" step="1" value="3">
-          </label>
-          <label>Diaper check (hours)
-            <input type="number" id="diaper-interval" min="1" step="1" value="2">
-          </label>
-        </div>
-        <p id="next-reminders">Next: —</p>
-      </section>
-    </section>
-
-    <section id="tab-history" role="tabpanel" aria-labelledby="btn-history" class="panel">
-      <div class="card">
-        <div class="row">
-          <label>Filter by type
-            <select id="filter-type">
-              <option value="all">All</option>
-              <option value="feeding">Feeding</option>
-              <option value="diaper">Diaper</option>
-              <option value="bath">Bath/Shower</option>
-              <option value="sleep">Sleep</option>
-              <option value="pump">Pumping</option>
-              <option value="med">Medicine</option>
-            </select>
-          </label>
-          <label>Date
-            <input type="date" id="filter-date">
-          </label>
-          <div class="actions">
-            <button id="export-json" class="btn">Export JSON</button>
-            <button id="export-csv" class="btn">Export CSV</button>
-            <label class="file">
-              <input type="file" id="import-file" accept=".json">
-              <span class="btn">Import JSON</span>
-            </label>
+      <section class="content">
+        <!-- LOG -->
+        <section id="tab-log" class="tab show">
+          <div class="card glass">
+            <h2>Quick Actions</h2>
+            <div class="quick-grid">
+              <div class="group">
+                <h3>Feeding</h3>
+                <div class="btn-grid">
+                  <button class="pill" data-qa='{"type":"feeding","amount":"2 oz"}'>2 oz</button>
+                  <button class="pill" data-qa='{"type":"feeding","amount":"4 oz"}'>4 oz</button>
+                  <button class="pill" data-qa='{"type":"feeding","amount":"6 oz"}'>6 oz</button>
+                  <button class="pill" data-qa='{"type":"feeding","amount":"Left 15 min"}'>Left 15m</button>
+                  <button class="pill" data-qa='{"type":"feeding","amount":"Right 15 min"}'>Right 15m</button>
+                </div>
+              </div>
+              <div class="group">
+                <h3>Diaper</h3>
+                <div class="btn-grid">
+                  <button class="pill" data-qa='{"type":"diaper","amount":"Wet"}'>Wet</button>
+                  <button class="pill" data-qa='{"type":"diaper","amount":"Dirty"}'>Dirty</button>
+                  <button class="pill" data-qa='{"type":"diaper","amount":"Both"}'>Both</button>
+                </div>
+              </div>
+              <div class="group">
+                <h3>Sleep</h3>
+                <div class="btn-grid">
+                  <button class="pill" id="sleep-start">Start</button>
+                  <button class="pill" id="sleep-stop">Stop</button>
+                </div>
+              </div>
+              <div class="group">
+                <h3>Bath</h3>
+                <div class="btn-grid">
+                  <button class="pill" data-qa='{"type":"bath","amount":"Bath"}'>Bath</button>
+                  <button class="pill" data-qa='{"type":"bath","amount":"Shower"}'>Shower</button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-        <ul id="entry-list" class="list"></ul>
-      </div>
-    </section>
 
-    <section id="tab-stats" role="tabpanel" aria-labelledby="btn-stats" class="panel">
-      <div class="card">
-        <canvas id="chart-7d" width="900" height="400" aria-label="7-day activity chart"></canvas>
-      </div>
-      <div class="grid">
-        <div class="tile"><h3>Feedings today</h3><p id="feedings-today">0</p></div>
-        <div class="tile"><h3>Total diapers today</h3><p id="diapers-total-today">0</p></div>
-        <div class="tile"><h3>Avg feedings / day</h3><p id="avg-feedings">0</p></div>
-        <div class="tile"><h3>Avg diapers / day</h3><p id="avg-diapers">0</p></div>
-      </div>
-      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-    </section>
+          <div class="card glass">
+            <h2>Custom Entry</h2>
+            <form id="entry-form" class="form">
+              <div class="seg" role="tablist" aria-label="Type">
+                <button type="button" role="tab" class="seg-btn active" data-type="feeding">Feeding</button>
+                <button type="button" role="tab" class="seg-btn" data-type="diaper">Diaper</button>
+                <button type="button" role="tab" class="seg-btn" data-type="sleep">Sleep</button>
+                <button type="button" role="tab" class="seg-btn" data-type="bath">Bath</button>
+                <button type="button" role="tab" class="seg-btn" data-type="pump">Pumping</button>
+                <button type="button" role="tab" class="seg-btn" data-type="med">Medicine</button>
+              </div>
 
-    <section id="tab-settings" role="tabpanel" aria-labelledby="btn-settings" class="panel">
-      <div class="card">
-        <h3>Household</h3>
-        <div class="row">
-          <label>Baby's name
-            <input type="text" id="baby-name" placeholder="e.g., Emma">
-          </label>
-          <label>Timezone
-            <input type="text" id="tz" placeholder="e.g., America/Denver">
-          </label>
-          <label>Theme
-            <select id="theme">
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-              <option value="auto">Auto</option>
-            </select>
-          </label>
-        </div>
-      </div>
+              <div class="grid">
+                <label>Who
+                  <select id="who" required>
+                    <option value="audra">Audra</option>
+                    <option value="anthony">Anthony</option>
+                    <option value="both">Both</option>
+                    <option value="caregiver">Caregiver</option>
+                  </select>
+                </label>
 
-      <div class="card">
-        <h3>Sync (optional)</h3>
-        <p>To sync across both phones, paste your Firebase config JSON below. Leave blank to use private, offline storage on each device.</p>
-        <textarea id="firebase-config" rows="6" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}'></textarea>
-        <div class="row">
-          <button id="connect-firebase" class="btn">Enable sync</button>
-          <button id="disconnect-firebase" class="btn">Disable sync</button>
-          <span id="sync-status" class="muted">Sync: off</span>
-        </div>
-      </div>
+                <label>Date & Time
+                  <input type="datetime-local" id="datetime" required>
+                </label>
 
-      <div class="card danger">
-        <h3>Data</h3>
-        <div class="row">
-          <button id="backup-json" class="btn">Backup (download JSON)</button>
-          <button id="clear-data" class="btn">Clear all data</button>
-        </div>
-      </div>
-    </section>
-  </main>
+                <label class="stepper">Amount / Details
+                  <div class="step-wrap">
+                    <button type="button" class="step" data-step="-1">−</button>
+                    <input type="text" id="amount" placeholder="e.g., 4 oz, 15 min, Wet" />
+                    <button type="button" class="step" data-step="1">+</button>
+                  </div>
+                </label>
+              </div>
 
-  <footer class="site-footer">
-    <p>&copy; <span id="year"></span> Baby Care Tracker — Offline first. Your data stays on your device unless you enable sync.</p>
-  </footer>
+              <label>Notes
+                <textarea id="notes" rows="3" placeholder="Anything notable…"></textarea>
+              </label>
+
+              <div class="actions">
+                <button type="submit" class="btn primary">Save</button>
+                <button type="button" class="btn" id="now">Now</button>
+                <button type="reset" class="btn ghost">Clear</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- HISTORY -->
+        <section id="tab-history" class="tab">
+          <div class="card glass">
+            <h2>History</h2>
+            <div class="grid">
+              <label>Type
+                <select id="filter-type">
+                  <option value="all">All</option>
+                  <option value="feeding">Feeding</option>
+                  <option value="diaper">Diaper</option>
+                  <option value="sleep">Sleep</option>
+                  <option value="bath">Bath/Shower</option>
+                  <option value="pump">Pumping</option>
+                  <option value="med">Medicine</option>
+                </select>
+              </label>
+              <label>Date
+                <input type="date" id="filter-date">
+              </label>
+              <div class="actions">
+                <button id="export-json" class="btn">Export JSON</button>
+                <button id="export-csv" class="btn">Export CSV</button>
+                <label class="file"><input type="file" id="import-file" accept=".json"><span class="btn">Import JSON</span></label>
+              </div>
+            </div>
+            <ul id="entry-list" class="list"></ul>
+          </div>
+        </section>
+
+        <!-- STATS -->
+        <section id="tab-stats" class="tab">
+          <div class="card glass">
+            <h2>7-Day Overview</h2>
+            <canvas id="chart-7d" width="900" height="420" aria-label="7-day chart"></canvas>
+          </div>
+          <div class="grid tiles">
+            <div class="tile glass"><h3>Feedings today</h3><p id="feedings-today">0</p></div>
+            <div class="tile glass"><h3>Diapers today</h3><p id="diapers-total-today">0</p></div>
+            <div class="tile glass"><h3>Avg feedings/day</h3><p id="avg-feedings">0</p></div>
+            <div class="tile glass"><h3>Avg diapers/day</h3><p id="avg-diapers">0</p></div>
+          </div>
+          <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="tab-settings" class="tab">
+          <div class="card glass">
+            <h2>Household</h2>
+            <div class="grid">
+              <label>Baby's name
+                <input type="text" id="baby-name" placeholder="Optional">
+              </label>
+              <label>Timezone
+                <input type="text" id="tz" placeholder="e.g., America/Denver">
+              </label>
+              <label>Theme
+                <select id="theme">
+                  <option value="auto">Auto</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
+            </div>
+          </div>
+
+          <div class="card glass">
+            <h2>Reminders</h2>
+            <div class="grid small">
+              <label>Feeding interval (hours)
+                <input type="number" id="feed-interval" min="1" step="1" value="3">
+              </label>
+              <label>Diaper check (hours)
+                <input type="number" id="diaper-interval" min="1" step="1" value="2">
+              </label>
+            </div>
+            <p class="muted" id="next-reminders">Next: —</p>
+          </div>
+
+          <div class="card glass">
+            <h2>Sync (optional)</h2>
+            <p>Paste your Firebase config below to sync across both phones. Leave blank to keep everything on-device.</p>
+            <textarea id="firebase-config" rows="6" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}'></textarea>
+            <div class="actions">
+              <button id="connect-firebase" class="btn">Enable sync</button>
+              <button id="disconnect-firebase" class="btn ghost">Disable sync</button>
+              <span id="sync-status" class="muted">Sync: off</span>
+            </div>
+          </div>
+
+          <div class="card glass danger">
+            <h2>Data</h2>
+            <div class="actions">
+              <button id="backup-json" class="btn">Backup (JSON)</button>
+              <button id="clear-data" class="btn">Clear all data</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer muted">Private by default · Works offline · © <span id="year"></span></footer>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <script src="app.js" type="module"></script>
   <script>
