@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baby Activity Tracker</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load Inter font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply Inter font */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* Mac-style light gray background */
+        }
+        /* Style for the modal backdrop */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 40;
+        }
+        /* Style for the modal panel */
+        .modal-panel {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 50;
+        }
+        
+        /* Custom class for the dynamic sleep button */
+        .sleep-button-active {
+            background-color: #fb923c; /* orange-500 */
+            color: white;
+        }
+        .sleep-button-inactive {
+            background-color: #facc15; /* yellow-400 */
+            color: #44403c; /* stone-700 */
+        }
+
+        /* Helper for stats in summary */
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 700; /* font-bold */
+            color: #1f2937; /* gray-800 */
+        }
+        .stat-label {
+            font-size: 0.75rem; /* text-xs */
+            font-weight: 500; /* font-medium */
+            color: #6b7280; /* gray-500 */
+            text-transform: uppercase;
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-xl mx-auto">
+
+        <!-- Header -->
+        <header class="mb-6">
+            <h1 class="text-4xl font-bold text-center text-gray-800">Baby Activity Tracker</h1>
+            <p class="text-center text-gray-500 text-sm mt-2">Logged in as user: <span id="userId" class="font-mono">loading...</span></p>
+        </header>
+
+        <!-- Today's Summary Card -->
+        <div id="summary-card" class="bg-white rounded-3xl shadow-xl p-6 mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Today's Summary</h2>
+            <div class="grid grid-cols-3 sm:grid-cols-5 gap-4">
+                <div class="stat-item">
+                    <span id="summary-sleep" class="stat-value">0m</span>
+                    <span class="stat-label">Total Sleep</span>
+                </div>
+                <div class="stat-item">
+                    <span id="summary-feeds" class="stat-value">0</span>
+                    <span class="stat-label">Feeds</span>
+                </div>
+                <div class="stat-item">
+                    <span id="summary-volume" class="stat-value">0 oz</span>
+                    <span class="stat-label">Volume</span>
+                </div>
+                <div class="stat-item">
+                    <span id="summary-diapers" class="stat-value">0</span>
+                    <span class="stat-label">Diapers</span>
+                </div>
+                <div class="stat-item">
+                    <span id="summary-baths" class="stat-value">0</span>
+                    <span class="stat-label">Baths</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: Weekly Patterns Card -->
+        <div id="charts-card" class="bg-white rounded-3xl shadow-xl p-6 mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-6 text-center">Weekly Patterns</h2>
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2 text-center">Total Sleep (Last 7 Days)</h3>
+                    <canvas id="sleepChart" class="max-h-64"></canvas>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2 text-center">Total Feeding Volume (Last 7 Days)</h3>
+                    <canvas id="feedingChart" class="max-h-64"></canvas>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Sleep Tracker Card -->
+        <div class="bg-white rounded-3xl shadow-xl p-6 mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Sleep Tracker</h2>
+            <div class="flex flex-col gap-4">
+                <!-- Dynamic Start/Stop Button -->
+                <button id="dynamic-sleep-button" class="sleep-button-inactive text-lg font-bold py-4 px-6 rounded-2xl shadow-md transition-all duration-300 transform hover:scale-105">
+                    <div class="flex flex-col items-center justify-center">
+                        <span id="sleep-button-main-text">😴 Start Sleep</span>
+                        <span id="sleep-button-sub-text" class="text-sm font-normal"></span>
+                    </div>
+                </button>
+                
+                <!-- Manual Log Button -->
+                <button id="manual-sleep-log-btn" class="w-full bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-2xl hover:bg-gray-300 transition-colors">
+                    Log a past session manually
+                </button>
+            </div>
+        </div>
+        
+        <!-- General Stopwatch Card -->
+        <div class="bg-white rounded-3xl shadow-xl p-6 mb-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">General Stopwatch</h2>
+            <div id="stopwatch-display" class="text-5xl font-mono text-center text-gray-800 mb-4">
+                00:00:00
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <button id="stopwatch-start" class="bg-green-500 text-white font-semibold py-2 px-4 rounded-2xl hover:bg-green-600">Start</button>
+                <button id="stopwatch-pause" class="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-2xl hover:bg-yellow-600">Pause</button>
+                <button id="stopwatch-reset" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-2xl hover:bg-red-600">Reset</button>
+            </div>
+            <button id="log-stopwatch-duration" class="mt-4 w-full bg-blue-500 text-white font-semibold py-3 px-4 rounded-2xl hover:bg-blue-600 transition-colors">
+                Log Duration
+            </button>
+        </div>
+
+        <!-- Instant Actions Card -->
+        <div class="bg-white rounded-3xl shadow-xl p-6 mb-8">
+             <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Instant Actions</h2>
+            <div class="grid grid-cols-3 gap-3">
+                <button onclick="openModal('Feeding')" class="flex flex-col items-center justify-center bg-blue-500 text-white font-semibold p-4 rounded-2xl shadow-md hover:bg-blue-600 transition-all transform hover:scale-105">
+                    <span class="text-3xl">🍼</span>
+                    <span>Feeding</span>
+                </button>
+                <button onclick="openModal('Diaper')" class="flex flex-col items-center justify-center bg-green-500 text-white font-semibold p-4 rounded-2xl shadow-md hover:bg-green-600 transition-all transform hover:scale-105">
+                    <span class="text-3xl">💩</span>
+                    <span>Diaper</span>
+                </button>
+                <button onclick="openModal('Bath/Shower')" class="flex flex-col items-center justify-center bg-purple-500 text-white font-semibold p-4 rounded-2xl shadow-md hover:bg-purple-600 transition-all transform hover:scale-105">
+                    <span class="text-3xl">🛁</span>
+                    <span>Bath/Shower</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Activities Log Card -->
+        <div class="bg-white rounded-3xl shadow-xl p-6">
+             <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Recent Activities</h2>
+            <div id="logHistory" class="space-y-4">
+                <!-- Log items will be injected here -->
+                <p class="text-center text-gray-500">No activities logged yet.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Backdrop -->
+    <div id="modal-backdrop" class="modal-backdrop" onclick="closeModal()"></div>
+    
+    <!-- Main Modal Panel -->
+    <div id="modal-panel" class="modal-panel bg-white rounded-3xl shadow-2xl p-6 w-11/12 max-w-md">
+        <h3 id="modal-title" class="text-2xl font-bold mb-6 text-center">Log Activity</h3>
+        
+        <!-- Feeding Specific Fields -->
+        <div id="feeding-fields" class="hidden space-y-4 mb-4">
+            <div>
+                <label for="feeding-quantity" class="block text-sm font-medium text-gray-700">Quantity / Method</label>
+                <select id="feeding-quantity" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-2xl shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option>Breastfeed (N/A)</option>
+                    <option>N/A</option>
+                    <option>2 oz</option>
+                    <option>3 oz</option>
+                    <option>4 oz</option>
+                    <option>5 oz</option>
+                    <option>6 oz</option>
+                    <option>7 oz</option>
+                    <option>8 oz</option>
+                    <option>9 oz</option>
+                    <option>10 oz</option>
+                </select>
+            </div>
+            <div>
+                <label for="feeding-food" class="block text-sm font-medium text-gray-700">Food Type</label>
+                <select id="feeding-food" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-2xl shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    <option>Milk / Formula</option>
+                    <option>Puree - Vegetable</option>
+                    <option>Puree - Fruit</option>
+                    <option>Puree - Meat</option>
+                    <option>Cereal / Oatmeal</option>
+                    <option>Finger Foods</option>
+                    <option>Table Foods</option>
+                    <option>Other</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Manual Sleep Specific Fields -->
+        <div id="manual-sleep-fields" class="hidden space-y-4 mb-4">
+            <div>
+                <label for="sleep-start-time" class="block text-sm font-medium text-gray-700">Start Time</label>
+                <input type="datetime-local" id="sleep-start-time" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            <div>
+                <label for="sleep-end-time" class="block text-sm font-medium text-gray-700">End Time</label>
+                <input type="datetime-local" id="sleep-end-time" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+        </div>
+
+        <!-- General Notes Field -->
+        <div>
+            <label for="modal-notes" class="block text-sm font-medium text-gray-700">Notes (Optional)</label>
+            <textarea id="modal-notes" rows="3" class="mt-1 block w-full py-2 px-3 border border-gray-300 rounded-2xl shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., right side for 10 min, very sleepy..."></textarea>
+        </div>
+
+        <!-- Modal Action Buttons -->
+        <div class="mt-6 flex justify-end space-x-3">
+            <button type="button" class="bg-white py-2 px-4 border border-gray-300 rounded-2xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" onclick="closeModal()">
+                Cancel
+            </button>
+            <button type="button" id="modal-save-btn" class="bg-blue-600 py-2 px-4 border border-transparent rounded-2xl shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Save
+            </button>
+        </div>
+    </div>
+
+    <!-- Firebase and App Logic -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            addDoc, 
+            collection, 
+            onSnapshot, 
+            query,
+            serverTimestamp,
+            getDoc,
+            updateDoc,
+            deleteDoc
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Global Config and State ---
+        let db, auth;
+        let userId;
+        let currentActivityType = null;
+        let sleepTimerInterval; // For the live sleep timer
+        let stopwatchInterval; // For the general stopwatch
+        let stopwatchStartTime = 0;
+        let stopwatchElapsedTime = 0;
+        let stopwatchRunning = false;
+        
+        // NEW: Chart instances
+        let sleepChartInstance;
+        let feedingChartInstance;
+        
+        // Use placeholder config and app ID if not provided by the environment
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "YOUR_API_KEY", authDomain: "YOUR_AUTH_DOMAIN", projectId: "YOUR_PROJECT_ID" };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // --- DOM Elements ---
+        const modalBackdrop = document.getElementById('modal-backdrop');
+        const modalPanel = document.getElementById('modal-panel');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSaveBtn = document.getElementById('modal-save-btn');
+        const modalNotes = document.getElementById('modal-notes');
+        const feedingFields = document.getElementById('feeding-fields');
+        const manualSleepFields = document.getElementById('manual-sleep-fields');
+        const logHistoryEl = document.getElementById('logHistory');
+        const userIdEl = document.getElementById('userId');
+        
+        // Sleep elements
+        const dynamicSleepButton = document.getElementById('dynamic-sleep-button');
+        const manualSleepLogBtn = document.getElementById('manual-sleep-log-btn');
+        const sleepButtonMainText = document.getElementById('sleep-button-main-text');
+        const sleepButtonSubText = document.getElementById('sleep-button-sub-text');
+
+        // Stopwatch elements
+        const stopwatchDisplay = document.getElementById('stopwatch-display');
+        const stopwatchStartBtn = document.getElementById('stopwatch-start');
+        const stopwatchPauseBtn = document.getElementById('stopwatch-pause');
+        const stopwatchResetBtn = document.getElementById('stopwatch-reset');
+        const logStopwatchBtn = document.getElementById('log-stopwatch-duration');
+        
+        // Summary elements
+        const summarySleepEl = document.getElementById('summary-sleep');
+        const summaryFeedsEl = document.getElementById('summary-feeds');
+        const summaryVolumeEl = document.getElementById('summary-volume');
+        const summaryDiapersEl = document.getElementById('summary-diapers');
+        const summaryBathsEl = document.getElementById('summary-baths');
+        
+        // NEW: Chart contexts
+        const sleepChartCtx = document.getElementById('sleepChart')?.getContext('2d');
+        const feedingChartCtx = document.getElementById('feedingChart')?.getContext('2d');
+
+        // --- Firebase Initialization ---
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            // setLogLevel('debug'); // Uncomment for Firestore debugging
+        } catch (e)
+        {
+            console.error("Error initializing Firebase:", e);
+        }
+
+        // --- Authentication ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                userIdEl.textContent = userId;
+                // User is signed in, initialize listeners
+                await setupListeners();
+            } else {
+                // User is signed out, try to sign in
+                try {
+                    if (typeof __initial_auth_token !== 'undefined') {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Error signing in:", error);
+                }
+            }
+        });
+        
+        // --- Collection References ---
+        const getLogsCollection = () => collection(db, 'artifacts', appId, 'users', userId, 'logs');
+        const getSleepTimerDoc = () => doc(db, 'artifacts', appId, 'users', userId, 'timers', 'activeSleep');
+
+        // --- Event Listeners ---
+        modalSaveBtn.onclick = handleSaveActivity;
+        dynamicSleepButton.onclick = toggleSleep;
+        manualSleepLogBtn.onclick = () => openModal('ManualSleep');
+        
+        // Stopwatch listeners
+        stopwatchStartBtn.onclick = startStopwatch;
+        stopwatchPauseBtn.onclick = pauseStopwatch;
+        stopwatchResetBtn.onclick = resetStopwatch;
+        logStopwatchBtn.onclick = () => openModal('TimedActivity');
+
+        // --- Main App Logic Setup ---
+        async function setupListeners() {
+            if (!userId) return;
+
+            // 1. Listen for changes to the main activity log
+            const logsCollection = getLogsCollection();
+            const q = query(logsCollection); // We'll sort client-side
+            
+            onSnapshot(q, (snapshot) => {
+                let allLogs = [];
+                snapshot.forEach(doc => {
+                    allLogs.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Sort logs by timestamp, newest first
+                allLogs.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
+                
+                // Update the UI
+                renderLogHistory(allLogs);
+                updateDailySummary(allLogs);
+                updateWeeklyCharts(allLogs); // NEW: Update charts
+                
+            }, (error) => {
+                console.error("Error listening to log history:", error);
+            });
+
+            // 2. Listen for changes to the active sleep timer
+            const sleepTimerDoc = getSleepTimerDoc();
+            onSnapshot(sleepTimerDoc, (doc) => {
+                const timerData = doc.exists() ? doc.data() : null;
+                updateSleepTimerUI(timerData);
+            }, (error) => {
+                console.error("Error listening to sleep timer:", error);
+            });
+        }
+
+        // --- Daily Summary Logic ---
+        function updateDailySummary(allLogs) {
+            let totalSleepMs = 0;
+            let feedCount = 0;
+            let totalVolume = 0;
+            let diaperCount = 0;
+            let bathCount = 0;
+            
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            
+            const todayLogs = allLogs.filter(log => log.timestamp.toDate().getTime() >= startOfToday.getTime());
+
+            todayLogs.forEach(log => {
+                switch (log.type) {
+                    case 'Sleep':
+                        if (log.durationMs) {
+                            totalSleepMs += log.durationMs;
+                        }
+                        break;
+                    case 'Feeding':
+                        feedCount++;
+                        if (log.quantity && log.quantity.includes('oz')) {
+                            const vol = parseInt(log.quantity, 10);
+                            if (!isNaN(vol)) {
+                                totalVolume += vol;
+                            }
+                        }
+                        break;
+                    case 'Diaper':
+                        diaperCount++;
+                        break;
+                    case 'Bath/Shower':
+                        bathCount++;
+                        break;
+                }
+            });
+
+            // Update DOM
+            summarySleepEl.textContent = totalSleepMs > 0 ? formatDurationSummary(totalSleepMs) : '0m';
+            summaryFeedsEl.textContent = feedCount;
+            summaryVolumeEl.textContent = `${totalVolume} oz`;
+            summaryDiapersEl.textContent = diaperCount;
+            summaryBathsEl.textContent = bathCount;
+        }
+        
+        // Helper to format duration for summary (e.g., "4h 15m")
+        function formatDurationSummary(totalMs) {
+            if (totalMs < 60000) return `${Math.floor(totalMs / 1000)}s`;
+            const hours = Math.floor(totalMs / 3600000);
+            const minutes = Math.floor((totalMs % 3600000) / 60000);
+            
+            let parts = [];
+            if (hours > 0) parts.push(`${hours}h`);
+            if (minutes > 0) parts.push(`${minutes}m`);
+            if (parts.length === 0) return '0m';
+            
+            return parts.join(' ');
+        }
+        
+        
+        // --- NEW: Weekly Chart Logic ---
+        function updateWeeklyCharts(allLogs) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // 1. Generate labels and data buckets for the last 7 days
+            const labels = [];
+            let sleepData = new Array(7).fill(0);
+            let feedingData = new Array(7).fill(0);
+
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+                if (i === 0) {
+                    labels.push('Today');
+                } else {
+                    labels.push(date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+                }
+            }
+
+            // 2. Process all logs and put them in the 7-day buckets
+            allLogs.forEach(log => {
+                const logDate = log.timestamp.toDate();
+                const diffTime = today.getTime() - logDate.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays >= 0 && diffDays < 7) {
+                    const index = 6 - diffDays; // 0 days ago (today) is index 6
+                    
+                    if (log.type === 'Sleep' && log.durationMs) {
+                        sleepData[index] += log.durationMs;
+                    }
+
+                    if (log.type === 'Feeding' && log.quantity && log.quantity.includes('oz')) {
+                        const vol = parseInt(log.quantity, 10);
+                        if (!isNaN(vol)) {
+                            feedingData[index] += vol;
+                        }
+                    }
+                }
+            });
+
+            // 3. Convert sleep data from MS to hours (e.g., 1.5 for 1h 30m)
+            const sleepDataHours = sleepData.map(ms => (ms / 3600000).toFixed(1));
+
+            // 4. Render the charts
+            renderSleepChart(labels, sleepDataHours);
+            renderFeedingChart(labels, feedingData);
+        }
+
+        function renderSleepChart(labels, data) {
+            if (!sleepChartCtx) return;
+            if (sleepChartInstance) {
+                sleepChartInstance.destroy();
+            }
+            sleepChartInstance = new Chart(sleepChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Sleep (Hours)',
+                        data: data,
+                        backgroundColor: '#fb923c', // orange-500
+                        borderRadius: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.parsed.y} hours`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Hours' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderFeedingChart(labels, data) {
+            if (!feedingChartCtx) return;
+            if (feedingChartInstance) {
+                feedingChartInstance.destroy();
+            }
+            feedingChartInstance = new Chart(feedingChartCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Volume (oz)',
+                        data: data,
+                        backgroundColor: '#3b82f6', // blue-500
+                        borderRadius: 8,
+                    }]
+                },
+                 options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.parsed.y} oz`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Ounces (oz)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        // --- UI Rendering ---
+        
+        function renderLogHistory(logs) {
+            if (logs.length === 0) {
+                logHistoryEl.innerHTML = '<p class="text-center text-gray-500">No activities logged yet.</p>';
+                return;
+            }
+
+            logHistoryEl.innerHTML = logs.map(log => {
+                const logTime = log.timestamp.toDate().toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                
+                let details = '';
+                if (log.type === 'Feeding') {
+                    details = `(${log.quantity}, ${log.food})`;
+                }
+                if (log.type === 'Sleep' && log.duration) {
+                    details = `(Duration: ${log.duration})`;
+                }
+                 if (log.type === 'TimedActivity' && log.duration) {
+                    details = `(Duration: ${log.duration})`;
+                }
+                
+                return `
+                    <div class="border-b border-gray-200 pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="font-semibold text-gray-700">${log.type} ${details}</span>
+                            <span class="text-xs text-gray-500">${logTime}</span>
+                        </div>
+                        ${log.notes ? `<p class="text-sm text-gray-600 mt-1 ml-2">${log.notes}</p>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- Sleep Timer Logic ---
+        
+        async function toggleSleep() {
+            if (!userId) return;
+            
+            const sleepTimerDoc = getSleepTimerDoc();
+            const timerDoc = await getDoc(sleepTimerDoc);
+            
+            if (timerDoc.exists()) {
+                // Timer is active, so we are STOPPING it
+                const timerData = timerDoc.data();
+                const startTime = timerData.startTime.toDate();
+                const endTime = new Date();
+                const durationMs = endTime.getTime() - startTime.getTime();
+                
+                const logEntry = {
+                    type: "Sleep",
+                    timestamp: serverTimestamp(),
+                    startTime: timerData.startTime,
+                    endTime: endTime,
+                    duration: formatElapsedTime(durationMs),
+                    durationMs: durationMs,
+                    notes: "" // Could add notes modal here later
+                };
+                
+                // 1. Add to log history
+                await addDoc(getLogsCollection(), logEntry);
+                // 2. Delete the active timer
+                await deleteDoc(sleepTimerDoc);
+                
+            } else {
+                // Timer is NOT active, so we are STARTING it
+                await setDoc(sleepTimerDoc, {
+                    startTime: serverTimestamp()
+                });
+            }
+        }
+        
+        function updateSleepTimerUI(timerData) {
+            if (sleepTimerInterval) clearInterval(sleepTimerInterval);
+            
+            if (timerData && timerData.startTime) {
+                // Active sleep session
+                dynamicSleepButton.classList.remove('sleep-button-inactive');
+                dynamicSleepButton.classList.add('sleep-button-active');
+                
+                const startTime = timerData.startTime.toDate();
+                sleepButtonSubText.textContent = `Started at ${startTime.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+                
+                // Start interval timer
+                sleepTimerInterval = setInterval(() => {
+                    const elapsedMs = new Date().getTime() - startTime.getTime();
+                    sleepButtonMainText.textContent = `😴 ${formatElapsedTime(elapsedMs)}`;
+                }, 1000); // Update every second
+
+            } else {
+                // No active sleep session
+                dynamicSleepButton.classList.remove('sleep-button-active');
+                dynamicSleepButton.classList.add('sleep-button-inactive');
+                sleepButtonMainText.textContent = '😴 Start Sleep';
+                sleepButtonSubText.textContent = '';
+            }
+        }
+
+        // --- Stopwatch Logic ---
+        function startStopwatch() {
+            if (stopwatchRunning) return;
+            stopwatchRunning = true;
+            stopwatchStartTime = Date.now() - stopwatchElapsedTime;
+            stopwatchInterval = setInterval(updateStopwatchDisplay, 1000);
+            
+            stopwatchStartBtn.disabled = true;
+            stopwatchPauseBtn.disabled = false;
+        }
+
+function pauseStopwatch() {
+            if (!stopwatchRunning) return;
+            stopwatchRunning = false;
+            clearInterval(stopwatchInterval);
+            stopwatchElapsedTime = Date.now() - stopwatchStartTime;
+            
+            stopwatchStartBtn.disabled = false;
+            stopwatchPauseBtn.disabled = true;
+        }
+
+        function resetStopwatch() {
+            stopwatchRunning = false;
+            clearInterval(stopwatchInterval);
+            stopwatchElapsedTime = 0;
+            updateStopwatchDisplay();
+            
+            stopwatchStartBtn.disabled = false;
+            stopwatchPauseBtn.disabled = true;
+        }
+        
+        function updateStopwatchDisplay() {
+            const elapsed = stopwatchRunning ? Date.now() - stopwatchStartTime : stopwatchElapsedTime;
+            stopwatchDisplay.textContent = formatElapsedTime(elapsed);
+        }
+
+        // --- General Helpers ---
+        function formatElapsedTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            return [
+                hours.toString().padStart(2, '0'),
+                minutes.toString().padStart(2, '0'),
+                seconds.toString().padStart(2, '0')
+            ].join(':');
+        }
+
+        // --- Modal Logic ---
+        
+        window.openModal = (activityType) => {
+            currentActivityType = activityType;
+            
+            // Reset modal state
+            modalNotes.value = '';
+            feedingFields.classList.add('hidden');
+            manualSleepFields.classList.add('hidden');
+
+            if (activityType === 'Feeding') {
+                modalTitle.textContent = 'Log Feeding';
+                feedingFields.classList.remove('hidden');
+            } else if (activityType === 'Diaper') {
+                modalTitle.textContent = 'Log Diaper';
+            } else if (activityType === 'Bath/Shower') {
+                modalTitle.textContent = 'Log Bath/Shower';
+            } else if (activityType === 'ManualSleep') {
+                modalTitle.textContent = 'Log Past Sleep';
+                manualSleepFields.classList.remove('hidden');
+                // Pre-fill times for convenience
+                const now = new Date();
+                const oneHourAgo = new Date(now.getTime() - 3600000);
+                document.getElementById('sleep-start-time').value = formatDateTimeLocal(oneHourAgo);
+                document.getElementById('sleep-end-time').value = formatDateTimeLocal(now);
+            } else if (activityType === 'TimedActivity') {
+                modalTitle.textContent = `Log Timed Activity (${formatElapsedTime(stopwatchElapsedTime)})`;
+                modalNotes.placeholder = "e.g., Tummy Time, Play Time...";
+            }
+            
+            modalBackdrop.style.display = 'block';
+            modalPanel.style.display = 'block';
+        }
+
+        window.closeModal = () => {
+            modalBackdrop.style.display = 'none';
+            modalPanel.style.display = 'none';
+        }
+
+        async function handleSaveActivity() {
+            if (!userId) return;
+
+            const notes = modalNotes.value;
+            let logEntry = {
+                type: currentActivityType,
+                timestamp: serverTimestamp(),
+                notes: notes
+            };
+
+            if (currentActivityType === 'Feeding') {
+                logEntry.quantity = document.getElementById('feeding-quantity').value;
+                logEntry.food = document.getElementById('feeding-food').value;
+            } 
+            else if (currentActivityType === 'ManualSleep') {
+                const startTimeStr = document.getElementById('sleep-start-time').value;
+                const endTimeStr = document.getElementById('sleep-end-time').value;
+                
+                if (!startTimeStr || !endTimeStr) {
+                    console.error("Please select start and end times."); // Replace with a UI error
+                    return;
+                }
+                
+                const startTime = new Date(startTimeStr);
+                const endTime = new Date(endTimeStr);
+                
+                if (endTime <= startTime) {
+                     console.error("End time must be after start time."); // Replace with a UI error
+                     return;
+                }
+                
+                const durationMs = endTime.getTime() - startTime.getTime();
+                
+                logEntry.type = "Sleep"; // Override type
+                logEntry.startTime = startTime;
+                logEntry.endTime = endTime;
+                logEntry.duration = formatElapsedTime(durationMs);
+                logEntry.durationMs = durationMs;
+                logEntry.timestamp = endTime; // Log the activity at its end time
+            }
+            else if (currentActivityType === 'TimedActivity') {
+                if (stopwatchElapsedTime === 0) {
+                    console.error("Stopwatch has no duration."); // Replace with a UI error
+                    return;
+                }
+                logEntry.duration = formatElapsedTime(stopwatchElapsedTime);
+                logEntry.durationMs = stopwatchElapsedTime;
+                // Reset stopwatch after logging
+                resetStopwatch();
+            }
+
+            // Save to Firestore
+            try {
+                await addDoc(getLogsCollection(), logEntry);
+                closeModal();
+            } catch (e) {
+                console.error("Error adding document: ", e);
+            }
+        }
+        
+        // Helper to format Date object to 'datetime-local' input value
+        function formatDateTimeLocal(date) {
+            const ten = (i) => (i < 10 ? '0' : '') + i;
+            const YYYY = date.getFullYear();
+            const MM = ten(date.getMonth() + 1);
+            const DD = ten(date.getDate());
+            const HH = ten(date.getHours());
+            const II = ten(date.getMinutes());
+            return `${YYYY}-${MM}-${DD}T${HH}:${II}`;
+        }
+
+    </script>
+</body>
+</html>
+
+
