@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Baby Care Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#7fb2ff">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Optional Firebase (only if you want sync). Fill FIREBASE_CONFIG in settings. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <h1>👶 Baby Care Tracker</h1>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" aria-selected="true" aria-controls="tab-log" id="btn-log">Log</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-history" id="btn-history">History</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-stats" id="btn-stats">Stats</button>
+      <button role="tab" aria-selected="false" aria-controls="tab-settings" id="btn-settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-log" role="tabpanel" aria-labelledby="btn-log" class="panel show">
+      <form id="entry-form" class="card" autocomplete="off">
+        <div class="row">
+          <label>Type
+            <select name="type" id="type" required>
+              <option value="feeding">Feeding</option>
+              <option value="diaper">Diaper</option>
+              <option value="bath">Bath/Shower</option>
+              <option value="sleep">Sleep</option>
+              <option value="pump">Pumping</option>
+              <option value="med">Medicine</option>
+            </select>
+          </label>
+          <label>Who
+            <select name="who" id="who" required>
+              <option value="mom">Mom</option>
+              <option value="dad">Dad</option>
+              <option value="both">Both</option>
+              <option value="caregiver">Caregiver</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <label>Date & Time
+            <input type="datetime-local" id="datetime" name="datetime" required>
+          </label>
+          <label>Amount / Details
+            <input type="text" id="amount" name="amount" placeholder="e.g., 4 oz, 15 min, wet/dirty">
+          </label>
+        </div>
+        <label>Notes
+          <textarea id="notes" name="notes" rows="3" placeholder="Anything notable…"></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" class="btn primary">Save entry</button>
+          <button type="button" class="btn" id="quick-now">Now</button>
+        </div>
+      </form>
+
+      <section class="summary grid">
+        <div class="tile">
+          <h3>Last feeding</h3>
+          <p id="last-feeding">—</p>
+        </div>
+        <div class="tile">
+          <h3>Diapers today</h3>
+          <p id="diapers-today">0</p>
+        </div>
+        <div class="tile">
+          <h3>Bath last</h3>
+          <p id="last-bath">—</p>
+        </div>
+        <div class="tile">
+          <h3>Sleep last</h3>
+          <p id="last-sleep">—</p>
+        </div>
+      </section>
+
+      <section class="reminders card">
+        <h3>Reminders</h3>
+        <div class="row">
+          <label>Feeding interval (hours)
+            <input type="number" id="feed-interval" min="1" step="1" value="3">
+          </label>
+          <label>Diaper check (hours)
+            <input type="number" id="diaper-interval" min="1" step="1" value="2">
+          </label>
+        </div>
+        <p id="next-reminders">Next: —</p>
+      </section>
+    </section>
+
+    <section id="tab-history" role="tabpanel" aria-labelledby="btn-history" class="panel">
+      <div class="card">
+        <div class="row">
+          <label>Filter by type
+            <select id="filter-type">
+              <option value="all">All</option>
+              <option value="feeding">Feeding</option>
+              <option value="diaper">Diaper</option>
+              <option value="bath">Bath/Shower</option>
+              <option value="sleep">Sleep</option>
+              <option value="pump">Pumping</option>
+              <option value="med">Medicine</option>
+            </select>
+          </label>
+          <label>Date
+            <input type="date" id="filter-date">
+          </label>
+          <div class="actions">
+            <button id="export-json" class="btn">Export JSON</button>
+            <button id="export-csv" class="btn">Export CSV</button>
+            <label class="file">
+              <input type="file" id="import-file" accept=".json">
+              <span class="btn">Import JSON</span>
+            </label>
+          </div>
+        </div>
+        <ul id="entry-list" class="list"></ul>
+      </div>
+    </section>
+
+    <section id="tab-stats" role="tabpanel" aria-labelledby="btn-stats" class="panel">
+      <div class="card">
+        <canvas id="chart-7d" width="900" height="400" aria-label="7-day activity chart"></canvas>
+      </div>
+      <div class="grid">
+        <div class="tile"><h3>Feedings today</h3><p id="feedings-today">0</p></div>
+        <div class="tile"><h3>Total diapers today</h3><p id="diapers-total-today">0</p></div>
+        <div class="tile"><h3>Avg feedings / day</h3><p id="avg-feedings">0</p></div>
+        <div class="tile"><h3>Avg diapers / day</h3><p id="avg-diapers">0</p></div>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    </section>
+
+    <section id="tab-settings" role="tabpanel" aria-labelledby="btn-settings" class="panel">
+      <div class="card">
+        <h3>Household</h3>
+        <div class="row">
+          <label>Baby's name
+            <input type="text" id="baby-name" placeholder="e.g., Emma">
+          </label>
+          <label>Timezone
+            <input type="text" id="tz" placeholder="e.g., America/Denver">
+          </label>
+          <label>Theme
+            <select id="theme">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="auto">Auto</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Sync (optional)</h3>
+        <p>To sync across both phones, paste your Firebase config JSON below. Leave blank to use private, offline storage on each device.</p>
+        <textarea id="firebase-config" rows="6" placeholder='{"apiKey": "...", "authDomain": "...", "projectId": "..."}'></textarea>
+        <div class="row">
+          <button id="connect-firebase" class="btn">Enable sync</button>
+          <button id="disconnect-firebase" class="btn">Disable sync</button>
+          <span id="sync-status" class="muted">Sync: off</span>
+        </div>
+      </div>
+
+      <div class="card danger">
+        <h3>Data</h3>
+        <div class="row">
+          <button id="backup-json" class="btn">Backup (download JSON)</button>
+          <button id="clear-data" class="btn">Clear all data</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; <span id="year"></span> Baby Care Tracker — Offline first. Your data stays on your device unless you enable sync.</p>
+  </footer>
+
+  <script src="app.js" type="module"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+    }
+  </script>
+</body>
+</html>
